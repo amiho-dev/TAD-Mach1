@@ -6,8 +6,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <AssemblyName>Mach1.Orchestrator</AssemblyName>
-    <RootNamespace>Mach1.Orchestrator</RootNamespace>
+    <AssemblyName>Mach1.Setup</AssemblyName>
+    <RootNamespace>Mach1.Setup</RootNamespace>
     <Version>1.4166.501</Version>
     <AssemblyVersion>1.4166.501.0</AssemblyVersion>
     <FileVersion>1.4166.501.0</FileVersion>
@@ -15,6 +15,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="..\..\scripts\WinReEngine.ps1" Link="Assets\WinReEngine.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\scripts\WinReEngine.ps1" Link="Payload\WinReEngine.ps1" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

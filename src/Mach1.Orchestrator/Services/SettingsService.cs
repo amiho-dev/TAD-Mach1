@@ -31,6 +31,18 @@ public sealed class SettingsService
                 return new Mach1Settings { ReleaseTag = Mach1Paths.CurrentRelease };
             }
 
+            if (string.IsNullOrWhiteSpace(loaded.SessionId))
+            {
+                loaded.SessionId = Guid.NewGuid().ToString("N");
+            }
+
+            if (string.IsNullOrWhiteSpace(loaded.PreparedUtc))
+            {
+                loaded.PreparedUtc = DateTime.UtcNow.ToString("O");
+            }
+
+            loaded.ReleaseTag = Mach1Paths.CurrentRelease;
+
             return loaded;
         }
         catch (Exception ex)
@@ -43,6 +55,8 @@ public sealed class SettingsService
     public void Save(Mach1Settings settings)
     {
         settings.SavedUtc = DateTime.UtcNow.ToString("O");
+        settings.PreparedUtc = string.IsNullOrWhiteSpace(settings.PreparedUtc) ? DateTime.UtcNow.ToString("O") : settings.PreparedUtc;
+        settings.SessionId = string.IsNullOrWhiteSpace(settings.SessionId) ? Guid.NewGuid().ToString("N") : settings.SessionId;
         settings.ReleaseTag = string.IsNullOrWhiteSpace(settings.ReleaseTag) ? Mach1Paths.CurrentRelease : settings.ReleaseTag;
 
         Directory.CreateDirectory(Mach1Paths.ConfigDirectory);

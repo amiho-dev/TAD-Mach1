@@ -44,7 +44,11 @@ public sealed class UpdaterService
                 return UpdateCheckResult.UpToDate(current);
             }
 
-            var asset = release.Assets.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.DownloadUrl));
+            var asset = release.Assets
+                .Where(a => !string.IsNullOrWhiteSpace(a.DownloadUrl) && !string.IsNullOrWhiteSpace(a.Name))
+                .OrderByDescending(a => a.Name!.EndsWith(".msi", StringComparison.OrdinalIgnoreCase) || a.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                .ThenBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault();
             return UpdateCheckResult.UpdateAvailable(new UpdatePackage(
                 release.TagName,
                 release.HtmlUrl ?? string.Empty,
@@ -126,7 +130,7 @@ public sealed class UpdaterService
 
     private static bool TryParseVersion(string value, out ComparableVersion version)
     {
-        var match = Regex.Match(value.Trim(), "^(?:Mach1|M1)\\.(\\d{4})\\.(\\d{3})\\.([A-Za-z0-9]+)$", RegexOptions.IgnoreCase);
+        var match = Regex.Match(value.Trim(), "^(?:Mach1|M1)\\.(\\d{4,5})\\.(\\d{3})\\.([A-Za-z0-9]+)$", RegexOptions.IgnoreCase);
         if (!match.Success)
         {
             version = default;

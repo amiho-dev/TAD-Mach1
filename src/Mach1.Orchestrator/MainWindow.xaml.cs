@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private readonly BackupService _backupService;
     private readonly WinReOrchestratorService _winReOrchestratorService;
     private readonly UpdaterService _updaterService;
+    private readonly BridgeService _bridgeService;
 
     private bool _backupCompleted;
     private bool _isUpdating;
@@ -29,6 +30,7 @@ public partial class MainWindow : Window
         _backupService = new BackupService(_commandRunner, _logService);
         _winReOrchestratorService = new WinReOrchestratorService(_installerService, _commandRunner, _logService);
         _updaterService = new UpdaterService(_logService);
+        _bridgeService = new BridgeService(_logService);
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -41,8 +43,18 @@ public partial class MainWindow : Window
             var loaded = _settingsService.LoadOrDefault();
             ApplySettingsToUi(loaded);
 
+            var bridgeResult = _bridgeService.ReadLastResult();
+            if (bridgeResult is not null)
+            {
+                var bridgeState = bridgeResult.Success ? "SUCCESS" : "FAILED";
+                SetStatus($"Last WinRE session {bridgeState}: {bridgeResult.Message} ({bridgeResult.CompletedUtc})");
+            }
+
             TxtOsInfo.Text = BuildFriendlyOsLabel();
-            SetStatus("Ready. Configure packs and run Create Backup before reboot-to-patch.");
+            if (bridgeResult is null)
+            {
+                SetStatus("Ready. Configure packs and run Create Backup before reboot-to-patch.");
+            }
             await CheckForUpdatesAsync(autoMode: true);
         }
         catch (Exception ex)
@@ -156,13 +168,15 @@ public partial class MainWindow : Window
     {
         return new Mach1Settings
         {
+            SessionId = Guid.NewGuid().ToString("N"),
             KernelTimerTweaks = ChkKernelTimer.IsChecked == true,
             ServiceHardening = ChkServiceHardening.IsChecked == true,
             Cs2PerformancePack = ChkCs2Pack.IsChecked == true,
             VerboseMode = ChkVerbose.IsChecked == true,
             BackupToggleConfirmed = ChkBackupToggle.IsChecked == true,
             BackupCompleted = _backupCompleted,
-            ReleaseTag = Mach1Paths.CurrentRelease
+            ReleaseTag = Mach1Paths.CurrentRelease,
+            PreparedUtc = DateTime.UtcNow.ToString("O")
         };
     }
 

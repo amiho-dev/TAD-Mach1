@@ -6,7 +6,7 @@ public static class Mach1Paths
 {
     public const string Brand = "Mach1 (by TAD)";
 
-    public const string CurrentRelease = "Mach1.0416.500.BF";
+    public const string CurrentRelease = "Mach1.04166.501.CU";
 
     public const string GitHubOwner = "amiho-dev";
 
@@ -29,6 +29,8 @@ public static class Mach1Paths
     public static string SettingsXmlPath => Path.Combine(ConfigDirectory, "settings.xml");
 
     public static string PendingFlagPath => Path.Combine(ConfigDirectory, "patch.pending");
+
+    public static string LastWinReResultPath => Path.Combine(ConfigDirectory, "last-winre-result.json");
 
     public static string OrchestratorLogPath => Path.Combine(LogDirectory, "mach1-orchestrator.log");
 

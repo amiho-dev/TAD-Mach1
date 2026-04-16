@@ -134,11 +134,54 @@ function Read-Mach1Settings {
     [xml]$xml = Get-Content -Path $SettingsPath -Raw
 
     return [pscustomobject]@{
+        SessionId = [string]$xml.Mach1Settings.SessionId
         KernelTimerTweaks = Convert-ToBoolean -Value ([string]$xml.Mach1Settings.KernelTimerTweaks)
         ServiceHardening = Convert-ToBoolean -Value ([string]$xml.Mach1Settings.ServiceHardening)
         Cs2PerformancePack = Convert-ToBoolean -Value ([string]$xml.Mach1Settings.Cs2PerformancePack)
         VerboseMode = Convert-ToBoolean -Value ([string]$xml.Mach1Settings.VerboseMode)
         ReleaseTag = [string]$xml.Mach1Settings.ReleaseTag
+        PreparedUtc = [string]$xml.Mach1Settings.PreparedUtc
+    }
+}
+
+function Write-BridgeResult {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SessionId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ReleaseTag,
+
+        [Parameter(Mandatory = $true)]
+        [bool]$Success,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    if ($null -eq $script:Mach1Root) {
+        return
+    }
+
+    try {
+        $configDir = Join-Path -Path $script:Mach1Root -ChildPath 'Config'
+        if (-not (Test-Path -LiteralPath $configDir)) {
+            New-Item -Path $configDir -ItemType Directory -Force | Out-Null
+        }
+
+        $resultPath = Join-Path -Path $configDir -ChildPath 'last-winre-result.json'
+        $payload = [pscustomobject]@{
+            sessionId = $SessionId
+            releaseTag = $ReleaseTag
+            success = $Success
+            message = $Message
+            completedUtc = [DateTime]::UtcNow.ToString('O')
+        }
+
+        $payload | ConvertTo-Json -Depth 4 | Set-Content -Path $resultPath -Encoding UTF8
+    }
+    catch {
+        Write-M1Log -Level 'WARN' -Always -Message "Could not write WinRE bridge result: $($_.Exception.Message)"
     }
 }
 
@@ -481,6 +524,7 @@ Write-M1Banner
 
 $progressStep = 0
 $totalSteps = 10
+$settings = $null
 
 try {
     Update-M1Progress -Current $progressStep -Total $totalSteps -Status 'Detecting offline Windows partition'
@@ -506,6 +550,27 @@ try {
     Update-M1Progress -Current $progressStep -Total $totalSteps -Status 'Reading Stage 1 settings'
     $settings = Read-Mach1Settings -SettingsPath $settingsPath
     $progressStep++
+
+    $pendingRaw = Get-Content -Path $pendingFile -Raw -ErrorAction SilentlyContinue
+    $pendingParts = @($pendingRaw -split '\|')
+    if ($pendingParts.Count -lt 5) {
+        throw 'Invalid pending trigger format. Session handshake cannot be validated.'
+    }
+
+    $pendingRelease = [string]$pendingParts[2]
+    $pendingSessionId = [string]$pendingParts[3]
+
+    if ([string]::IsNullOrWhiteSpace([string]$settings.SessionId)) {
+        throw 'SessionId was missing in settings.xml from Stage 1.'
+    }
+
+    if ($pendingSessionId -ne [string]$settings.SessionId) {
+        throw "Session handshake mismatch. pending=$pendingSessionId settings=$($settings.SessionId)"
+    }
+
+    if ($pendingRelease -ne [string]$settings.ReleaseTag) {
+        throw "Release handshake mismatch. pending=$pendingRelease settings=$($settings.ReleaseTag)"
+    }
 
     Initialize-VerboseToggle -FromConfig $settings.VerboseMode
     Write-M1Log -Level 'INFO' -Always -Message "Release in scope: $($settings.ReleaseTag)"
@@ -579,9 +644,14 @@ try {
     $progressStep = $totalSteps
     Update-M1Progress -Current $progressStep -Total $totalSteps -Status 'Completed'
     Write-M1Log -Level 'SUCCESS' -Always -Message 'All selected offline operations completed successfully.'
+    Write-BridgeResult -SessionId ([string]$settings.SessionId) -ReleaseTag ([string]$settings.ReleaseTag) -Success $true -Message 'Offline patch execution completed successfully.'
 
     Reboot-BackToWindows
 }
 catch {
+    if ($null -ne $settings -and $null -ne $settings.SessionId) {
+        Write-BridgeResult -SessionId ([string]$settings.SessionId) -ReleaseTag ([string]$settings.ReleaseTag) -Success $false -Message ("Critical WinRE engine failure: $($_.Exception.Message)")
+    }
+
     Abort-And-Reboot -Reason ("Critical WinRE engine failure: $($_.Exception.Message)")
 }

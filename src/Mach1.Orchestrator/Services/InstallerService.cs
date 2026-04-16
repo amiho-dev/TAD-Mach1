@@ -1,4 +1,5 @@
 using System.IO;
+using Mach1.Orchestrator.Models;
 
 namespace Mach1.Orchestrator.Services;
 
@@ -27,9 +28,14 @@ public sealed class InstallerService
         _logService.Info("Installer logic completed. Directory root is C:\\Mach1.");
     }
 
-    public void ArmPendingPatchTrigger()
+    public void ArmPendingPatchTrigger(Mach1Settings settings)
     {
-        var triggerContent = $"{Mach1Paths.Brand}|{DateTime.UtcNow:O}|{Mach1Paths.CurrentRelease}";
+        var triggerContent = string.Join("|",
+            Mach1Paths.Brand,
+            DateTime.UtcNow.ToString("O"),
+            Mach1Paths.CurrentRelease,
+            settings.SessionId,
+            settings.PreparedUtc);
         File.WriteAllText(Mach1Paths.PendingFlagPath, triggerContent);
         _logService.Info("Pending patch trigger created.");
     }

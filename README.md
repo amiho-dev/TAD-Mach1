@@ -23,9 +23,10 @@ Mach1 (by TAD) is a two-stage Windows optimization workflow:
 	- mandatory Create Backup workflow before patch mode
 - Reboot-to-patch workflow:
 	1. Save selected modules to settings.xml
-	2. Inject startup script into WinRE image via winpeshl.ini
-	3. Arm one-time WinRE boot with reagentc /boottore
-	4. Reboot with shutdown /r /t 0
+	2. Add session handshake metadata (SessionId + release tag + prep timestamp)
+	3. Inject startup script into WinRE image via winpeshl.ini
+	4. Arm one-time WinRE boot with reagentc /boottore
+	5. Reboot with shutdown /r /t 0
 
 ### Stage 2 - WinRE Engine
 
@@ -34,11 +35,13 @@ Mach1 (by TAD) is a two-stage Windows optimization workflow:
 	1. Detect Windows partition.
 	2. Mount offline hives: SYSTEM, SOFTWARE, NTUSER.DAT.
 	3. Read settings.xml from C:\Mach1\Config.
-	4. Apply selected cold tweaks while OS is offline.
+	4. Validate handshake using patch.pending and settings SessionId/release.
+	5. Apply selected cold tweaks while OS is offline.
 - Verbose mode prints key-level operations in real time.
 - Auto-finalize:
 	- unload hives
 	- clear pending startup trigger
+	- write bridge result to C:\Mach1\Config\last-winre-result.json
 	- reboot back to live Windows
 
 ## Technical Guardrails
@@ -55,8 +58,12 @@ Mach1 (by TAD) is a two-stage Windows optimization workflow:
 - src/Mach1.Orchestrator
 	- previous WPF orchestrator implementation
 	- installer, backup, settings, WinRE orchestration services
+- src/Mach1.Setup
+	- UI-based cumulative installer for main system and recovery engine
 - scripts/WinReEngine.ps1
 	- Stage 2 offline patch engine used inside WinRE
+- scripts/Build-CUInstaller.ps1
+	- builds complete single-file UI installer with embedded payload
 - Mach1.ps1
 	- primary native PowerShell Stage 1 orchestrator
 
@@ -76,8 +83,13 @@ M1.MMDD.Versionnumber.XX
 
 Example:
 
-- Mach1.0416.500.BF
-- Mach1.0416.500.BF
+- Mach1.04166.501.CU
+
+## Build Complete Installer (Windows)
+
+1. Open elevated PowerShell in the repository root.
+2. Run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-CUInstaller.ps1`
+3. Installer output: `artifacts\installer\Mach1.Setup.exe`
 
 Suffix examples:
 

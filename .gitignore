@@ -26,3 +26,5 @@ Thumbs.db
 *.pdb
 *.cache
 *.tmp
+artifacts/
+src/Mach1.Setup/Payload/

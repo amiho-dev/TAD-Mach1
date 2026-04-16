@@ -2,6 +2,8 @@ namespace Mach1.Orchestrator.Models;
 
 public sealed class Mach1Settings
 {
+    public string SessionId { get; set; } = Guid.NewGuid().ToString("N");
+
     public bool KernelTimerTweaks { get; set; }
 
     public bool ServiceHardening { get; set; }
@@ -14,7 +16,9 @@ public sealed class Mach1Settings
 
     public bool BackupCompleted { get; set; }
 
-    public string ReleaseTag { get; set; } = "Mach1.0416.500.BF";
+    public string ReleaseTag { get; set; } = "Mach1.04166.501.CU";
+
+    public string PreparedUtc { get; set; } = DateTime.UtcNow.ToString("O");
 
     public string SavedUtc { get; set; } = DateTime.UtcNow.ToString("O");
 }

@@ -5,7 +5,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $script:Brand = 'Mach1 (by TAD)'
-$script:CurrentRelease = 'M1.0415.001.BF'
+$script:CurrentRelease = 'Mach1.04166.501.CU'
 
 $script:Paths = [ordered]@{
     Root = 'C:\Mach1'
@@ -16,6 +16,7 @@ $script:Paths = [ordered]@{
     WinReWorkDirectory = 'C:\Mach1\WinRE\Work'
     SettingsXmlPath = 'C:\Mach1\Config\settings.xml'
     PendingFlagPath = 'C:\Mach1\Config\patch.pending'
+    LastWinReResultPath = 'C:\Mach1\Config\last-winre-result.json'
     OrchestratorLogPath = 'C:\Mach1\Logs\mach1-orchestrator.log'
     WinReLogPath = 'C:\Mach1\Logs\mach1-winre.log'
     InstalledEngineScriptPath = 'C:\Mach1\WinRE\WinReEngine.ps1'
@@ -40,7 +41,9 @@ function New-M1SettingsObject {
         [bool]$VerboseMode = $false,
         [bool]$BackupToggleConfirmed = $false,
         [bool]$BackupCompleted = $false,
+        [string]$SessionId = '',
         [string]$ReleaseTag = $script:CurrentRelease,
+        [string]$PreparedUtc = '',
         [string]$SavedUtc = ''
     )
 
@@ -52,7 +55,16 @@ function New-M1SettingsObject {
         $ReleaseTag = $script:CurrentRelease
     }
 
+    if ([string]::IsNullOrWhiteSpace($SessionId)) {
+        $SessionId = [Guid]::NewGuid().ToString('N')
+    }
+
+    if ([string]::IsNullOrWhiteSpace($PreparedUtc)) {
+        $PreparedUtc = [DateTime]::UtcNow.ToString('O')
+    }
+
     return [pscustomobject]@{
+        SessionId = $SessionId
         KernelTimerTweaks = $KernelTimerTweaks
         ServiceHardening = $ServiceHardening
         Cs2PerformancePack = $Cs2PerformancePack
@@ -60,6 +72,7 @@ function New-M1SettingsObject {
         BackupToggleConfirmed = $BackupToggleConfirmed
         BackupCompleted = $BackupCompleted
         ReleaseTag = $ReleaseTag
+        PreparedUtc = $PreparedUtc
         SavedUtc = $SavedUtc
     }
 }
@@ -246,6 +259,7 @@ function Load-M1SettingsOrDefault {
         }
 
         $settingsArgs = @{
+            SessionId = ([string]$root.SessionId)
             KernelTimerTweaks = (Convert-ToM1Boolean -Value ([string]$root.KernelTimerTweaks))
             ServiceHardening = (Convert-ToM1Boolean -Value ([string]$root.ServiceHardening))
             Cs2PerformancePack = (Convert-ToM1Boolean -Value ([string]$root.Cs2PerformancePack))
@@ -253,6 +267,7 @@ function Load-M1SettingsOrDefault {
             BackupToggleConfirmed = (Convert-ToM1Boolean -Value ([string]$root.BackupToggleConfirmed))
             BackupCompleted = (Convert-ToM1Boolean -Value ([string]$root.BackupCompleted))
             ReleaseTag = ([string]$root.ReleaseTag)
+            PreparedUtc = ([string]$root.PreparedUtc)
             SavedUtc = ([string]$root.SavedUtc)
         }
 
@@ -271,6 +286,8 @@ function Save-M1Settings {
     )
 
     $Settings.ReleaseTag = if ([string]::IsNullOrWhiteSpace([string]$Settings.ReleaseTag)) { $script:CurrentRelease } else { [string]$Settings.ReleaseTag }
+    $Settings.SessionId = if ([string]::IsNullOrWhiteSpace([string]$Settings.SessionId)) { [Guid]::NewGuid().ToString('N') } else { [string]$Settings.SessionId }
+    $Settings.PreparedUtc = if ([string]::IsNullOrWhiteSpace([string]$Settings.PreparedUtc)) { [DateTime]::UtcNow.ToString('O') } else { [string]$Settings.PreparedUtc }
     $Settings.SavedUtc = [DateTime]::UtcNow.ToString('O')
 
     $kernelTimer = Convert-M1BooleanToXml -Value ([bool]$Settings.KernelTimerTweaks)
@@ -283,6 +300,7 @@ function Save-M1Settings {
     $xmlText = @"
 <?xml version="1.0" encoding="utf-8"?>
 <Mach1Settings>
+    <SessionId>$($Settings.SessionId)</SessionId>
   <KernelTimerTweaks>$kernelTimer</KernelTimerTweaks>
   <ServiceHardening>$serviceHardening</ServiceHardening>
   <Cs2PerformancePack>$cs2Pack</Cs2PerformancePack>
@@ -290,6 +308,7 @@ function Save-M1Settings {
   <BackupToggleConfirmed>$backupToggle</BackupToggleConfirmed>
   <BackupCompleted>$backupCompleted</BackupCompleted>
   <ReleaseTag>$($Settings.ReleaseTag)</ReleaseTag>
+    <PreparedUtc>$($Settings.PreparedUtc)</PreparedUtc>
   <SavedUtc>$($Settings.SavedUtc)</SavedUtc>
 </Mach1Settings>
 "@
@@ -323,7 +342,9 @@ function New-M1SettingsFromUi {
         VerboseMode = $script:Ui.VerboseMode
         BackupToggleConfirmed = $script:Ui.BackupToggleConfirmed
         BackupCompleted = $script:Ui.BackupCompleted
+        SessionId = [Guid]::NewGuid().ToString('N')
         ReleaseTag = $script:CurrentRelease
+        PreparedUtc = [DateTime]::UtcNow.ToString('O')
     }
 
     return New-M1SettingsObject @settingsArgs
@@ -405,7 +426,12 @@ function Get-M1Readiness {
 }
 
 function Arm-M1PendingPatchTrigger {
-    $content = '{0}|{1}|{2}' -f $script:Brand, ([DateTime]::UtcNow.ToString('O')), $script:CurrentRelease
+    param(
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$Settings
+    )
+
+    $content = '{0}|{1}|{2}|{3}|{4}' -f $script:Brand, ([DateTime]::UtcNow.ToString('O')), $script:CurrentRelease, [string]$Settings.SessionId, [string]$Settings.PreparedUtc
     Set-Content -Path $script:Paths.PendingFlagPath -Value $content -Encoding ASCII
     Write-M1Log -Level 'SUCCESS' -Message 'Pending patch trigger created.'
 }
@@ -524,7 +550,7 @@ function Prepare-M1PatchBoot {
         Ensure-M1EngineScriptInstalled
 
         Write-Progress -Activity "$script:Brand - Stage 1" -Status 'Arming pending patch trigger' -PercentComplete 20
-        Arm-M1PendingPatchTrigger
+        Arm-M1PendingPatchTrigger -Settings $Settings
 
         Write-Progress -Activity "$script:Brand - Stage 1" -Status 'Resolving Winre.wim path' -PercentComplete 35
         $wimPath = Resolve-M1WinReWimPath

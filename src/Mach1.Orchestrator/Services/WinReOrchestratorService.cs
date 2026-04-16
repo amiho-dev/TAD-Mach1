@@ -24,7 +24,12 @@ public sealed class WinReOrchestratorService
         {
             EnsureEngineScriptExists();
 
-            _installerService.ArmPendingPatchTrigger();
+            if (File.Exists(Mach1Paths.LastWinReResultPath))
+            {
+                File.Delete(Mach1Paths.LastWinReResultPath);
+            }
+
+            _installerService.ArmPendingPatchTrigger(settings);
 
             var winReWimPath = await ResolveWinReWimPathAsync(cancellationToken).ConfigureAwait(false);
             await InjectWinReStartupAsync(winReWimPath, cancellationToken).ConfigureAwait(false);

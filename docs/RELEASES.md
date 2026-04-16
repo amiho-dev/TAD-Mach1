@@ -2,13 +2,14 @@
 
 ## Current Release
 
-- Mach1.0416.500.BF
-- Type: Bug Fix (BF)
+- Mach1.04166.501.CU
+- Type: Cumulative Update (CU)
 - Notes:
-	- Full WPF UI redesign with responsive card layout
-	- Auto light/dark theme based on system preference
-	- Corrected Windows 11 display labeling for 10.0.26200+ kernels
-	- Added GitHub release updater with automatic download and installer launch for EXE/MSI assets
+	- Added SYS and RE session handshake (SessionId + release validation)
+	- Added WinRE-to-SYS completion bridge file (`last-winre-result.json`)
+	- Added full UI installer app (`Mach1.Setup`) for main system and recovery engine components
+	- Added installer packaging script: `scripts/Build-CUInstaller.ps1`
+	- Published complete single-file installer payload: `artifacts/installer/Mach1.Setup.exe`
 
 Release tags are sorted and named in the following format:
 
@@ -16,7 +17,7 @@ M1.MMDD.Versionnumber.XX
 
 Example:
 
-- M1.0415.001.BF
+- Mach1.04166.501.CU
 
 ## Segment Meaning
 
