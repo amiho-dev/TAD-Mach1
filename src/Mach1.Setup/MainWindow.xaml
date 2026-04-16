@@ -33,7 +33,7 @@
 
         <StackPanel Grid.Column="2">
           <TextBlock x:Name="TxtInstallerTitle" Text="Mach1 Cumulative Update Installer" FontSize="28" FontWeight="Bold" Foreground="White" />
-          <TextBlock Text="Release: Mach1.04166.501.CU" Foreground="#DCEEFF" FontSize="13" />
+          <TextBlock Text="Release: Mach1.04166.503.BF" Foreground="#DCEEFF" FontSize="13" />
           <TextBlock x:Name="TxtMode" Text="Mode: Full install" Foreground="#DCEEFF" FontSize="13" />
         </StackPanel>
       </Grid>

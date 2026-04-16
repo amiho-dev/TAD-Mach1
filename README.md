@@ -83,7 +83,7 @@ M1.MMDD.Versionnumber.XX
 
 Example:
 
-- Mach1.04166.501.CU
+- Mach1.04166.503.BF
 
 ## Build Complete Installer (Windows)
 

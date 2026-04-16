@@ -10,7 +10,7 @@ namespace Mach1.Setup;
 
 public partial class MainWindow : Window
 {
-    private const string ReleaseTag = "Mach1.04166.501.CU";
+    private const string ReleaseTag = "Mach1.04166.503.BF";
     private const string ProgramFilesMainPath = @"C:\Program Files\Mach1\Orchestrator";
     private const string Mach1Root = @"C:\Mach1";
     private const string ConfigDirectory = @"C:\Mach1\Config";

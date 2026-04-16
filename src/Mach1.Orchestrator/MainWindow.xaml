@@ -225,7 +225,7 @@
         </Grid.ColumnDefinitions>
         <StackPanel Orientation="Horizontal">
           <TextBlock Text="Mach1 (by TAD)" FontWeight="Bold" FontSize="13" />
-          <TextBlock x:Name="TxtVersion" Margin="12,0,0,0" Foreground="{StaticResource MutedTextBrush}" Text="Release: Mach1.04166.501.CU" />
+          <TextBlock x:Name="TxtVersion" Margin="12,0,0,0" Foreground="{StaticResource MutedTextBrush}" Text="Release: Mach1.04166.503.BF" />
         </StackPanel>
         <TextBlock Grid.Column="1"
                    FontSize="12"

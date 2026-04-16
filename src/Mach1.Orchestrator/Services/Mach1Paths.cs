@@ -6,7 +6,7 @@ public static class Mach1Paths
 {
     public const string Brand = "Mach1 (by TAD)";
 
-    public const string CurrentRelease = "Mach1.04166.501.CU";
+    public const string CurrentRelease = "Mach1.04166.503.BF";
 
     public const string GitHubOwner = "amiho-dev";
 

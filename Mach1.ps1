@@ -5,7 +5,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $script:Brand = 'Mach1 (by TAD)'
-$script:CurrentRelease = 'Mach1.04166.501.CU'
+$script:CurrentRelease = 'Mach1.04166.503.BF'
 
 $script:Paths = [ordered]@{
     Root = 'C:\Mach1'

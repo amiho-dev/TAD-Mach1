@@ -8,10 +8,10 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>Mach1.Setup</AssemblyName>
     <RootNamespace>Mach1.Setup</RootNamespace>
-    <Version>1.4166.501</Version>
-    <AssemblyVersion>1.4166.501.0</AssemblyVersion>
-    <FileVersion>1.4166.501.0</FileVersion>
-    <InformationalVersion>Mach1.04166.501.CU</InformationalVersion>
+    <Version>1.4166.503</Version>
+    <AssemblyVersion>1.4166.503.0</AssemblyVersion>
+    <FileVersion>1.4166.503.0</FileVersion>
+    <InformationalVersion>Mach1.04166.503.BF</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>

@@ -2,8 +2,8 @@
 
 ## Current Release
 
-- Mach1.04166.501.CU
-- Type: Cumulative Update (CU)
+- Mach1.04166.503.BF
+- Type: Bug Fix (BF)
 - Notes:
 	- Added SYS and RE session handshake (SessionId + release validation)
 	- Added WinRE-to-SYS completion bridge file (`last-winre-result.json`)
@@ -18,7 +18,7 @@ M1.MMDD.Versionnumber.XX
 
 Example:
 
-- Mach1.04166.501.CU
+- Mach1.04166.503.BF
 
 ## Segment Meaning
 

@@ -24,7 +24,7 @@ public sealed class Mach1Settings
 
     public int HostBuild { get; set; }
 
-    public string ReleaseTag { get; set; } = "Mach1.04166.501.CU";
+    public string ReleaseTag { get; set; } = "Mach1.04166.503.BF";
 
     public string PreparedUtc { get; set; } = DateTime.UtcNow.ToString("O");
 
