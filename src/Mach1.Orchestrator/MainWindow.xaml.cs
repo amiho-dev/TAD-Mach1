@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 using Microsoft.Win32;
 using Mach1.Orchestrator.Models;
 using Mach1.Orchestrator.Services;
@@ -18,6 +19,10 @@ public partial class MainWindow : Window
 
     private bool _backupCompleted;
     private bool _isUpdating;
+    private string _hostProductName = "Windows";
+    private int _hostBuild;
+    private bool _isWindows11Like;
+    private bool _isWindows10Ltsc;
 
     public MainWindow()
     {
@@ -40,6 +45,9 @@ public partial class MainWindow : Window
             _installerService.EnsureInstalled();
             TxtVersion.Text = $"Release: {Mach1Paths.CurrentRelease}";
 
+            DetectHost();
+            TxtOsInfo.Text = BuildHostSummary();
+
             var loaded = _settingsService.LoadOrDefault();
             ApplySettingsToUi(loaded);
 
@@ -47,14 +55,13 @@ public partial class MainWindow : Window
             if (bridgeResult is not null)
             {
                 var bridgeState = bridgeResult.Success ? "SUCCESS" : "FAILED";
-                SetStatus($"Last WinRE session {bridgeState}: {bridgeResult.Message} ({bridgeResult.CompletedUtc})");
+                SetStatus($"Last recovery session {bridgeState}: {bridgeResult.Message} ({bridgeResult.CompletedUtc})");
+            }
+            else
+            {
+                SetStatus("Ready. Select profile, configure safety checks, then start recovery execution.");
             }
 
-            TxtOsInfo.Text = BuildFriendlyOsLabel();
-            if (bridgeResult is null)
-            {
-                SetStatus("Ready. Configure packs and run Create Backup before reboot-to-patch.");
-            }
             await CheckForUpdatesAsync(autoMode: true);
         }
         catch (Exception ex)
@@ -62,6 +69,27 @@ public partial class MainWindow : Window
             SetStatus($"Initialization failed: {ex.Message}");
             _logService.Error($"Window init error: {ex}");
         }
+    }
+
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+        {
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            return;
+        }
+
+        DragMove();
+    }
+
+    private void BtnMinimizeWindow_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void BtnCloseWindow_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
     }
 
     private async void BtnCreateBackup_Click(object sender, RoutedEventArgs e)
@@ -73,15 +101,9 @@ public partial class MainWindow : Window
         {
             var ok = await _backupService.CreateSystemRestorePointAsync();
             _backupCompleted = ok;
-
-            if (ok)
-            {
-                SetStatus("Backup completed. You can now arm reboot-to-patch.");
-            }
-            else
-            {
-                SetStatus("Backup failed. Patch mode stays blocked.");
-            }
+            SetStatus(ok
+                ? "Backup completed. Recovery execution can proceed."
+                : "Backup failed. Use backup bypass only if you accept full risk.");
         }
         catch (Exception ex)
         {
@@ -101,7 +123,7 @@ public partial class MainWindow : Window
         {
             var settings = BuildSettingsFromUi();
             _settingsService.Save(settings);
-            SetStatus("Selection saved to settings.xml.");
+            SetStatus($"Configuration saved with {settings.OptimizationProfile} profile.");
         }
         catch (Exception ex)
         {
@@ -119,7 +141,7 @@ public partial class MainWindow : Window
         }
 
         SetBusy(true);
-        SetStatus("Saving configuration and preparing WinRE image...");
+        SetStatus("Preparing recovery environment startup and offline execution plan...");
 
         try
         {
@@ -129,21 +151,19 @@ public partial class MainWindow : Window
             var prep = await _winReOrchestratorService.PreparePatchBootAsync(settings);
             if (!prep.Success)
             {
-                SetStatus($"Patch preparation failed: {prep.Message}");
+                SetStatus($"Recovery preparation failed: {prep.Message}");
                 return;
             }
 
-            SetStatus("WinRE patch flow armed. Awaiting reboot confirmation.");
-
             var answer = MessageBox.Show(
-                "Mach1 (by TAD) is armed for Recovery patching. Reboot immediately now?",
-                "Mach1 (by TAD)",
+                "Configuration is complete. Windows will reboot into Recovery Environment and execute the selected profile. Reboot now?",
+                "Mach1 Recovery Execution",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
 
             if (answer != MessageBoxResult.Yes)
             {
-                SetStatus("Reboot deferred by user. Trigger remains armed for next reboot.");
+                SetStatus("Recovery run is prepared and will execute on next reboot.");
                 return;
             }
 
@@ -151,12 +171,15 @@ public partial class MainWindow : Window
             if (!reboot.Success)
             {
                 SetStatus($"Reboot command failed: {reboot.Message}");
+                return;
             }
+
+            SetStatus("Reboot command submitted. Recovery execution will start shortly.");
         }
         catch (Exception ex)
         {
             SetStatus($"Unexpected failure: {ex.Message}");
-            _logService.Error($"Patch flow failed: {ex}");
+            _logService.Error($"Recovery flow failed: {ex}");
         }
         finally
         {
@@ -166,15 +189,22 @@ public partial class MainWindow : Window
 
     private Mach1Settings BuildSettingsFromUi()
     {
+        var profile = GetSelectedProfile();
+        var modules = ResolveModules(profile, _isWindows11Like, _isWindows10Ltsc);
+
         return new Mach1Settings
         {
             SessionId = Guid.NewGuid().ToString("N"),
-            KernelTimerTweaks = ChkKernelTimer.IsChecked == true,
-            ServiceHardening = ChkServiceHardening.IsChecked == true,
-            Cs2PerformancePack = ChkCs2Pack.IsChecked == true,
+            OptimizationProfile = profile,
+            KernelTimerTweaks = modules.Kernel,
+            ServiceHardening = modules.Service,
+            Cs2PerformancePack = modules.Cs2,
             VerboseMode = ChkVerbose.IsChecked == true,
             BackupToggleConfirmed = ChkBackupToggle.IsChecked == true,
+            BackupBypassConfirmed = ChkBackupBypass.IsChecked == true,
             BackupCompleted = _backupCompleted,
+            HostProductName = _hostProductName,
+            HostBuild = _hostBuild,
             ReleaseTag = Mach1Paths.CurrentRelease,
             PreparedUtc = DateTime.UtcNow.ToString("O")
         };
@@ -182,31 +212,36 @@ public partial class MainWindow : Window
 
     private void ApplySettingsToUi(Mach1Settings settings)
     {
-        ChkKernelTimer.IsChecked = settings.KernelTimerTweaks;
-        ChkServiceHardening.IsChecked = settings.ServiceHardening;
-        ChkCs2Pack.IsChecked = settings.Cs2PerformancePack;
+        var profile = string.IsNullOrWhiteSpace(settings.OptimizationProfile)
+            ? "Recommended"
+            : settings.OptimizationProfile;
+
+        RdoRecommended.IsChecked = profile.Equals("Recommended", StringComparison.OrdinalIgnoreCase);
+        RdoUltra.IsChecked = profile.Equals("Ultra", StringComparison.OrdinalIgnoreCase);
+        RdoLight.IsChecked = profile.Equals("Light", StringComparison.OrdinalIgnoreCase);
+
+        if (RdoRecommended.IsChecked != true && RdoUltra.IsChecked != true && RdoLight.IsChecked != true)
+        {
+            RdoRecommended.IsChecked = true;
+        }
+
         ChkVerbose.IsChecked = settings.VerboseMode;
         ChkBackupToggle.IsChecked = settings.BackupToggleConfirmed;
+        ChkBackupBypass.IsChecked = settings.BackupBypassConfirmed;
         _backupCompleted = settings.BackupCompleted;
     }
 
     private bool ValidatePatchReadiness(out string reason)
     {
-        if (!IsAnyPackSelected())
-        {
-            reason = "Select at least one optimization pack.";
-            return false;
-        }
-
         if (ChkBackupToggle.IsChecked != true)
         {
-            reason = "Mandatory BETA backup toggle is not confirmed.";
+            reason = "Confirm the recovery-execution acknowledgment before continuing.";
             return false;
         }
 
-        if (!_backupCompleted)
+        if (!_backupCompleted && ChkBackupBypass.IsChecked != true)
         {
-            reason = "Create Backup must complete successfully before patching.";
+            reason = "Create Backup must complete, or explicitly enable backup bypass.";
             return false;
         }
 
@@ -214,11 +249,44 @@ public partial class MainWindow : Window
         return true;
     }
 
-    private bool IsAnyPackSelected()
+    private string GetSelectedProfile()
     {
-        return ChkKernelTimer.IsChecked == true
-            || ChkServiceHardening.IsChecked == true
-            || ChkCs2Pack.IsChecked == true;
+        if (RdoUltra.IsChecked == true)
+        {
+            return "Ultra";
+        }
+
+        if (RdoLight.IsChecked == true)
+        {
+            return "Light";
+        }
+
+        return "Recommended";
+    }
+
+    private static (bool Kernel, bool Service, bool Cs2) ResolveModules(string profile, bool isWindows11Like, bool isWindows10Ltsc)
+    {
+        if (profile.Equals("Ultra", StringComparison.OrdinalIgnoreCase))
+        {
+            return (true, true, true);
+        }
+
+        if (profile.Equals("Light", StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, false, true);
+        }
+
+        if (isWindows10Ltsc)
+        {
+            return (true, true, true);
+        }
+
+        if (isWindows11Like)
+        {
+            return (true, false, true);
+        }
+
+        return (true, true, false);
     }
 
     private void SetBusy(bool busy)
@@ -298,25 +366,39 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string BuildFriendlyOsLabel()
-    {
-        var version = Environment.OSVersion.Version;
-        var productName = ReadWindowsProductName();
-        var adjustedName = productName;
-
-        if (productName.Contains("Windows 10", StringComparison.OrdinalIgnoreCase) && version.Build >= 22000)
-        {
-            adjustedName = productName.Replace("Windows 10", "Windows 11", StringComparison.OrdinalIgnoreCase);
-        }
-
-        return $"Detected host: {adjustedName} (build {version.Build}, kernel {version.Major}.{version.Minor}.{version.Build}). Win11-only removals remain skipped on Windows 10 LTSC.";
-    }
-
-    private static string ReadWindowsProductName()
+    private void DetectHost()
     {
         const string keyPath = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion";
         using var key = Registry.LocalMachine.OpenSubKey(keyPath);
         var productName = key?.GetValue("ProductName") as string;
-        return string.IsNullOrWhiteSpace(productName) ? "Windows" : productName;
+        var buildText = (key?.GetValue("CurrentBuild") as string)
+            ?? (key?.GetValue("CurrentBuildNumber") as string)
+            ?? "0";
+
+        _hostProductName = string.IsNullOrWhiteSpace(productName) ? "Windows" : productName;
+        _hostBuild = int.TryParse(buildText, out var parsedBuild) ? parsedBuild : Environment.OSVersion.Version.Build;
+        _isWindows11Like = _hostProductName.Contains("Windows 11", StringComparison.OrdinalIgnoreCase)
+            || (_hostProductName.Contains("Windows 10", StringComparison.OrdinalIgnoreCase) && _hostBuild >= 22000);
+        _isWindows10Ltsc = _hostProductName.Contains("Windows 10", StringComparison.OrdinalIgnoreCase)
+            && (_hostProductName.Contains("LTSC", StringComparison.OrdinalIgnoreCase)
+                || _hostProductName.Contains("EnterpriseS", StringComparison.OrdinalIgnoreCase)
+                || _hostProductName.Contains("IoTEnterpriseS", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private string BuildHostSummary()
+    {
+        var normalized = _hostProductName;
+        if (!_hostProductName.Contains("Windows 11", StringComparison.OrdinalIgnoreCase)
+            && _hostProductName.Contains("Windows 10", StringComparison.OrdinalIgnoreCase)
+            && _hostBuild >= 22000)
+        {
+            normalized = _hostProductName.Replace("Windows 10", "Windows 11", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var profileHint = _isWindows10Ltsc
+            ? "LTSC policy set active"
+            : _isWindows11Like ? "Windows 11 policy set active" : "Windows 10 policy set active";
+
+        return $"Detected host: {normalized} (build {_hostBuild}). {profileHint}.";
     }
 }

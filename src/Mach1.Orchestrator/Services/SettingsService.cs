@@ -41,6 +41,11 @@ public sealed class SettingsService
                 loaded.PreparedUtc = DateTime.UtcNow.ToString("O");
             }
 
+            if (string.IsNullOrWhiteSpace(loaded.OptimizationProfile))
+            {
+                loaded.OptimizationProfile = "Recommended";
+            }
+
             loaded.ReleaseTag = Mach1Paths.CurrentRelease;
 
             return loaded;
@@ -57,6 +62,7 @@ public sealed class SettingsService
         settings.SavedUtc = DateTime.UtcNow.ToString("O");
         settings.PreparedUtc = string.IsNullOrWhiteSpace(settings.PreparedUtc) ? DateTime.UtcNow.ToString("O") : settings.PreparedUtc;
         settings.SessionId = string.IsNullOrWhiteSpace(settings.SessionId) ? Guid.NewGuid().ToString("N") : settings.SessionId;
+        settings.OptimizationProfile = string.IsNullOrWhiteSpace(settings.OptimizationProfile) ? "Recommended" : settings.OptimizationProfile;
         settings.ReleaseTag = string.IsNullOrWhiteSpace(settings.ReleaseTag) ? Mach1Paths.CurrentRelease : settings.ReleaseTag;
 
         Directory.CreateDirectory(Mach1Paths.ConfigDirectory);

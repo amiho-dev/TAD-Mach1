@@ -23,6 +23,7 @@ public sealed class InstallerService
         Directory.CreateDirectory(Mach1Paths.UpdatesDirectory);
 
         EnsureBundledEngineScriptInstalled();
+        EnsureBundledLogoInstalled();
         WriteBetaNotice();
 
         _logService.Info("Installer logic completed. Directory root is C:\\Mach1.");
@@ -73,5 +74,18 @@ public sealed class InstallerService
             $"Release: {Mach1Paths.CurrentRelease}");
 
         File.WriteAllText(betaInfoPath, text);
+    }
+
+    private void EnsureBundledLogoInstalled()
+    {
+        var sourceLogo = Path.Combine(AppContext.BaseDirectory, "Assets", "Mach1Logo.png");
+        if (!File.Exists(sourceLogo))
+        {
+            _logService.Warn($"Bundled logo not found at {sourceLogo}.");
+            return;
+        }
+
+        File.Copy(sourceLogo, Mach1Paths.InstalledLogoPath, overwrite: true);
+        _logService.Info("Mach1 logo copied to config directory.");
     }
 }

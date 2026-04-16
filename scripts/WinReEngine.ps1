@@ -9,15 +9,16 @@ $script:VerboseMode = $false
 $script:LogPath = 'X:\mach1-winre.log'
 $script:MountedHives = @()
 $script:Mach1Root = $null
-
-function Write-M1Banner {
-    Clear-Host
-    Write-Host '+-------------------------------------------------------------------------+' -ForegroundColor DarkCyan
-    Write-Host '| Mach1 Recovery Engine [BETA]                                           |' -ForegroundColor Black -BackgroundColor Cyan
-    Write-Host '| Offline Optimization Console                                           |' -ForegroundColor Black -BackgroundColor Cyan
-    Write-Host '+-------------------------------------------------------------------------+' -ForegroundColor DarkCyan
-    Write-Host ''
-}
+$script:UiEnabled = $false
+$script:UiForm = $null
+$script:UiLblStatus = $null
+$script:UiLblCurrent = $null
+$script:UiLblEta = $null
+$script:UiLblHost = $null
+$script:UiLblProfile = $null
+$script:UiBarTotal = $null
+$script:UiBarCurrent = $null
+$script:StartTime = Get-Date
 
 function Write-M1Log {
     param(
@@ -53,24 +54,180 @@ function Write-M1Log {
     }
 }
 
-function Update-M1Progress {
+function Try-InitializeRecoveryUi {
     param(
         [Parameter(Mandatory = $true)]
-        [int]$Current,
-
-        [Parameter(Mandatory = $true)]
-        [int]$Total,
-
-        [Parameter(Mandatory = $true)]
-        [string]$Status
+        [string]$LogoPath
     )
 
-    $percent = if ($Total -le 0) { 0 } else { [int](($Current / [double]$Total) * 100) }
-    if ($percent -gt 100) {
-        $percent = 100
+    try {
+        Add-Type -AssemblyName System.Windows.Forms
+        Add-Type -AssemblyName System.Drawing
+
+        $form = New-Object System.Windows.Forms.Form
+        $form.Text = 'Mach1 Recovery Engine'
+        $form.Size = New-Object System.Drawing.Size(780, 420)
+        $form.StartPosition = 'CenterScreen'
+        $form.FormBorderStyle = 'FixedSingle'
+        $form.MaximizeBox = $false
+        $form.BackColor = [System.Drawing.Color]::FromArgb(238, 242, 247)
+
+        $logo = New-Object System.Windows.Forms.PictureBox
+        $logo.Location = New-Object System.Drawing.Point(18, 14)
+        $logo.Size = New-Object System.Drawing.Size(56, 56)
+        $logo.SizeMode = 'Zoom'
+        if (Test-Path -LiteralPath $LogoPath) {
+            $logo.Image = [System.Drawing.Image]::FromFile($LogoPath)
+        }
+
+        $title = New-Object System.Windows.Forms.Label
+        $title.Location = New-Object System.Drawing.Point(86, 16)
+        $title.Size = New-Object System.Drawing.Size(620, 26)
+        $title.Font = New-Object System.Drawing.Font('Segoe UI', 14, [System.Drawing.FontStyle]::Bold)
+        $title.Text = 'Mach1 Recovery Environment'
+
+        $subTitle = New-Object System.Windows.Forms.Label
+        $subTitle.Location = New-Object System.Drawing.Point(88, 44)
+        $subTitle.Size = New-Object System.Drawing.Size(640, 22)
+        $subTitle.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+        $subTitle.ForeColor = [System.Drawing.Color]::FromArgb(70, 84, 102)
+        $subTitle.Text = 'Offline execution is now processing your selected deployment profile'
+
+        $host = New-Object System.Windows.Forms.Label
+        $host.Location = New-Object System.Drawing.Point(20, 88)
+        $host.Size = New-Object System.Drawing.Size(730, 20)
+        $host.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+        $host.Text = 'Host: Detection pending'
+
+        $profile = New-Object System.Windows.Forms.Label
+        $profile.Location = New-Object System.Drawing.Point(20, 110)
+        $profile.Size = New-Object System.Drawing.Size(730, 20)
+        $profile.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+        $profile.Text = 'Profile: Pending'
+
+        $status = New-Object System.Windows.Forms.Label
+        $status.Location = New-Object System.Drawing.Point(20, 144)
+        $status.Size = New-Object System.Drawing.Size(730, 22)
+        $status.Font = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
+        $status.Text = 'Status: Starting'
+
+        $current = New-Object System.Windows.Forms.Label
+        $current.Location = New-Object System.Drawing.Point(20, 172)
+        $current.Size = New-Object System.Drawing.Size(730, 20)
+        $current.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+        $current.Text = 'Current step: Starting'
+
+        $barTotal = New-Object System.Windows.Forms.ProgressBar
+        $barTotal.Location = New-Object System.Drawing.Point(20, 202)
+        $barTotal.Size = New-Object System.Drawing.Size(730, 22)
+        $barTotal.Minimum = 0
+        $barTotal.Maximum = 100
+
+        $barCurrent = New-Object System.Windows.Forms.ProgressBar
+        $barCurrent.Location = New-Object System.Drawing.Point(20, 240)
+        $barCurrent.Size = New-Object System.Drawing.Size(730, 20)
+        $barCurrent.Minimum = 0
+        $barCurrent.Maximum = 100
+
+        $eta = New-Object System.Windows.Forms.Label
+        $eta.Location = New-Object System.Drawing.Point(20, 272)
+        $eta.Size = New-Object System.Drawing.Size(730, 20)
+        $eta.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+        $eta.Text = 'ETA: Calculating'
+
+        $note = New-Object System.Windows.Forms.Label
+        $note.Location = New-Object System.Drawing.Point(20, 308)
+        $note.Size = New-Object System.Drawing.Size(730, 42)
+        $note.Font = New-Object System.Drawing.Font('Segoe UI', 8)
+        $note.ForeColor = [System.Drawing.Color]::FromArgb(82, 95, 112)
+        $note.Text = 'Do not power off this machine while recovery execution is running.'
+
+        $form.Controls.AddRange(@($logo, $title, $subTitle, $host, $profile, $status, $current, $barTotal, $barCurrent, $eta, $note))
+        $form.Show()
+        [System.Windows.Forms.Application]::DoEvents()
+
+        $script:UiForm = $form
+        $script:UiLblStatus = $status
+        $script:UiLblCurrent = $current
+        $script:UiLblEta = $eta
+        $script:UiLblHost = $host
+        $script:UiLblProfile = $profile
+        $script:UiBarTotal = $barTotal
+        $script:UiBarCurrent = $barCurrent
+        $script:UiEnabled = $true
+    }
+    catch {
+        $script:UiEnabled = $false
+        Write-M1Log -Level 'WARN' -Always -Message "WinForms UI unavailable in this recovery session: $($_.Exception.Message)"
+    }
+}
+
+function Set-RecoveryUiMeta {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Host,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Profile
+    )
+
+    if (-not $script:UiEnabled) {
+        return
     }
 
-    Write-Progress -Activity "$script:Brand - WinRE Engine" -Status $Status -PercentComplete $percent
+    $script:UiLblHost.Text = "Host: $Host"
+    $script:UiLblProfile.Text = "Profile: $Profile"
+    [System.Windows.Forms.Application]::DoEvents()
+}
+
+function Set-RecoveryUiProgress {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$TotalPercent,
+
+        [Parameter(Mandatory = $true)]
+        [int]$CurrentPercent,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Status,
+
+        [Parameter(Mandatory = $true)]
+        [string]$CurrentStep
+    )
+
+    $totalSafe = [Math]::Max(0, [Math]::Min(100, $TotalPercent))
+    $currentSafe = [Math]::Max(0, [Math]::Min(100, $CurrentPercent))
+
+    if ($script:UiEnabled) {
+        $script:UiBarTotal.Value = $totalSafe
+        $script:UiBarCurrent.Value = $currentSafe
+        $script:UiLblStatus.Text = "Status: $Status"
+        $script:UiLblCurrent.Text = "Current step: $CurrentStep"
+
+        $elapsed = (Get-Date) - $script:StartTime
+        if ($totalSafe -gt 0) {
+            $totalSeconds = $elapsed.TotalSeconds / ($totalSafe / 100.0)
+            $remaining = [TimeSpan]::FromSeconds([Math]::Max(0, $totalSeconds - $elapsed.TotalSeconds))
+            $script:UiLblEta.Text = ('ETA: {0:mm\\:ss}' -f $remaining)
+        }
+        else {
+            $script:UiLblEta.Text = 'ETA: Calculating'
+        }
+
+        [System.Windows.Forms.Application]::DoEvents()
+    }
+}
+
+function Close-RecoveryUi {
+    if (-not $script:UiEnabled) {
+        return
+    }
+
+    try {
+        $script:UiForm.Close()
+    }
+    catch {
+    }
 }
 
 function Convert-ToBoolean {
@@ -135,12 +292,15 @@ function Read-Mach1Settings {
 
     return [pscustomobject]@{
         SessionId = [string]$xml.Mach1Settings.SessionId
+        OptimizationProfile = [string]$xml.Mach1Settings.OptimizationProfile
         KernelTimerTweaks = Convert-ToBoolean -Value ([string]$xml.Mach1Settings.KernelTimerTweaks)
         ServiceHardening = Convert-ToBoolean -Value ([string]$xml.Mach1Settings.ServiceHardening)
         Cs2PerformancePack = Convert-ToBoolean -Value ([string]$xml.Mach1Settings.Cs2PerformancePack)
         VerboseMode = Convert-ToBoolean -Value ([string]$xml.Mach1Settings.VerboseMode)
         ReleaseTag = [string]$xml.Mach1Settings.ReleaseTag
         PreparedUtc = [string]$xml.Mach1Settings.PreparedUtc
+        HostProductName = [string]$xml.Mach1Settings.HostProductName
+        HostBuild = [string]$xml.Mach1Settings.HostBuild
     }
 }
 
@@ -183,102 +343,6 @@ function Write-BridgeResult {
     catch {
         Write-M1Log -Level 'WARN' -Always -Message "Could not write WinRE bridge result: $($_.Exception.Message)"
     }
-}
-
-function Initialize-VerboseToggle {
-    param(
-        [Parameter(Mandatory = $true)]
-        [bool]$FromConfig
-    )
-
-    $script:VerboseMode = $FromConfig
-
-    Write-Host ('Verbose mode from Stage 1 config: {0}' -f ($(if ($script:VerboseMode) { 'ON' } else { 'OFF' }))) -ForegroundColor Yellow
-    Write-Host 'Press V within 4 seconds to toggle verbose mode.' -ForegroundColor Yellow
-
-    try {
-        $sw = [System.Diagnostics.Stopwatch]::StartNew()
-        while ($sw.Elapsed.TotalSeconds -lt 4) {
-            if ([Console]::KeyAvailable) {
-                $key = [Console]::ReadKey($true)
-                if ($key.Key -eq [ConsoleKey]::V) {
-                    $script:VerboseMode = -not $script:VerboseMode
-                    break
-                }
-            }
-
-            Start-Sleep -Milliseconds 120
-        }
-    }
-    catch {
-    }
-
-    Write-M1Log -Level 'INFO' -Always -Message ('Verbose mode active: {0}' -f $script:VerboseMode)
-}
-
-function Show-M1RecoveryPanel {
-    param(
-        [Parameter(Mandatory = $true)]
-        [pscustomobject]$Settings,
-
-        [Parameter(Mandatory = $true)]
-        [string]$WindowsDrive,
-
-        [Parameter(Mandatory = $true)]
-        [string]$Mach1Root
-    )
-
-    $kernelState = if ($Settings.KernelTimerTweaks) { 'ENABLED' } else { 'DISABLED' }
-    $serviceState = if ($Settings.ServiceHardening) { 'ENABLED' } else { 'DISABLED' }
-    $gameState = if ($Settings.Cs2PerformancePack) { 'ENABLED (CS2)' } else { 'DISABLED' }
-    $verboseState = if ($script:VerboseMode) { 'ON' } else { 'OFF' }
-
-    Clear-Host
-    Write-Host '+-------------------------------------------------------------------------+' -ForegroundColor DarkCyan
-    Write-Host '| Mach1 Recovery Execution Panel                                         |' -ForegroundColor Black -BackgroundColor Cyan
-    Write-Host '+-------------------------------------------------------------------------+' -ForegroundColor DarkCyan
-    Write-Host ('| Windows Target: {0,-57}|' -f $WindowsDrive) -ForegroundColor Gray
-    Write-Host ('| Mach1 Root   : {0,-57}|' -f $Mach1Root) -ForegroundColor Gray
-    Write-Host ('| Release      : {0,-57}|' -f $Settings.ReleaseTag) -ForegroundColor Gray
-    Write-Host '+-------------------------------------------------------------------------+' -ForegroundColor DarkCyan
-    Write-Host ('| Kernel/Timer Tweaks      : {0,-42}|' -f $kernelState) -ForegroundColor White
-    Write-Host ('| Service Hardening        : {0,-42}|' -f $serviceState) -ForegroundColor White
-    Write-Host ('| Game Optimization        : {0,-42}|' -f $gameState) -ForegroundColor White
-    Write-Host ('| Verbose WinRE Output     : {0,-42}|' -f $verboseState) -ForegroundColor White
-    Write-Host '+-------------------------------------------------------------------------+' -ForegroundColor DarkCyan
-    Write-Host '| Controls                                                                |' -ForegroundColor DarkCyan
-    Write-Host '| Enter = Start now    V = Toggle Verbose    A = Abort to Recovery UI    |' -ForegroundColor DarkCyan
-    Write-Host '| Auto-start in 8 seconds.                                                |' -ForegroundColor DarkCyan
-    Write-Host '+-------------------------------------------------------------------------+' -ForegroundColor DarkCyan
-
-    $deadline = (Get-Date).AddSeconds(8)
-
-    try {
-        while ((Get-Date) -lt $deadline) {
-            if ([Console]::KeyAvailable) {
-                $key = [Console]::ReadKey($true)
-                if ($key.Key -eq [ConsoleKey]::Enter) {
-                    return $true
-                }
-
-                if ($key.Key -eq [ConsoleKey]::A) {
-                    return $false
-                }
-
-                if ($key.Key -eq [ConsoleKey]::V) {
-                    $script:VerboseMode = -not $script:VerboseMode
-                    $mode = if ($script:VerboseMode) { 'ON' } else { 'OFF' }
-                    Write-Host ("Verbose mode toggled: {0}" -f $mode) -ForegroundColor Yellow
-                }
-            }
-
-            Start-Sleep -Milliseconds 120
-        }
-    }
-    catch {
-    }
-
-    return $true
 }
 
 function Mount-OfflineHive {
@@ -352,7 +416,7 @@ function Invoke-RegSetDword {
         throw "Failed to set DWORD $Path :: $Name = $Value. Output: $($output -join ' ')"
     }
 
-    Write-M1Log -Level 'SUCCESS' -Message "[SUCCESS] $Path\\$Name = $Value"
+    Write-M1Log -Level 'SUCCESS' -Message "$Path\\$Name = $Value"
 }
 
 function Invoke-RegSetString {
@@ -372,7 +436,7 @@ function Invoke-RegSetString {
         throw "Failed to set REG_SZ $Path :: $Name = $Value. Output: $($output -join ' ')"
     }
 
-    Write-M1Log -Level 'SUCCESS' -Message "[SUCCESS] $Path\\$Name = $Value"
+    Write-M1Log -Level 'SUCCESS' -Message "$Path\\$Name = $Value"
 }
 
 function Get-OfflineOsProfile {
@@ -390,6 +454,39 @@ function Get-OfflineOsProfile {
     }
 }
 
+function Resolve-ModulePlan {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$OptimizationProfile,
+
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$OfflineProfile,
+
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$Settings
+    )
+
+    $profile = if ([string]::IsNullOrWhiteSpace($OptimizationProfile)) { 'Recommended' } else { $OptimizationProfile }
+
+    if ($profile -ieq 'Ultra') {
+        return [pscustomobject]@{ Profile = 'Ultra'; Kernel = $true; Service = $true; Cs2 = $true }
+    }
+
+    if ($profile -ieq 'Light') {
+        return [pscustomobject]@{ Profile = 'Light'; Kernel = $false; Service = $false; Cs2 = $true }
+    }
+
+    if ($OfflineProfile.IsWindows10Ltsc) {
+        return [pscustomobject]@{ Profile = 'Recommended'; Kernel = $true; Service = $true; Cs2 = $true }
+    }
+
+    if ($OfflineProfile.IsWindows11) {
+        return [pscustomobject]@{ Profile = 'Recommended'; Kernel = $true; Service = $false; Cs2 = $true }
+    }
+
+    return [pscustomobject]@{ Profile = 'Recommended'; Kernel = $true; Service = $true; Cs2 = $false }
+}
+
 function Invoke-KernelTimerModule {
     Write-M1Log -Level 'INFO' -Always -Message 'Applying Kernel/Timer module...'
 
@@ -397,19 +494,16 @@ function Invoke-KernelTimerModule {
     if ($LASTEXITCODE -ne 0) {
         throw "BCDEdit failed for disabledynamictick. Output: $($cmdA -join ' ')"
     }
-    Write-M1Log -Level 'SUCCESS' -Message '[SUCCESS] bcdedit disabledynamictick yes'
 
     $cmdB = & bcdedit /set useplatformclock no 2>&1
     if ($LASTEXITCODE -ne 0) {
         throw "BCDEdit failed for useplatformclock. Output: $($cmdB -join ' ')"
     }
-    Write-M1Log -Level 'SUCCESS' -Message '[SUCCESS] bcdedit useplatformclock no'
 
     $cmdC = & bcdedit /set tscsyncpolicy Enhanced 2>&1
     if ($LASTEXITCODE -ne 0) {
         throw "BCDEdit failed for tscsyncpolicy. Output: $($cmdC -join ' ')"
     }
-    Write-M1Log -Level 'SUCCESS' -Message '[SUCCESS] bcdedit tscsyncpolicy Enhanced'
 
     Invoke-RegSetDword -Path 'HKLM\OFFLINE_SYSTEM\ControlSet001\Control\PriorityControl' -Name 'Win32PrioritySeparation' -Value '26'
     Invoke-RegSetDword -Path 'HKLM\OFFLINE_SYSTEM\ControlSet001\Control\Power\PowerThrottling' -Name 'PowerThrottlingOff' -Value '1'
@@ -436,7 +530,7 @@ function Invoke-ServiceHardeningModule {
 }
 
 function Invoke-GameOptimizationModule {
-    Write-M1Log -Level 'INFO' -Always -Message 'Applying Game Optimization module (CS2)...'
+    Write-M1Log -Level 'INFO' -Always -Message 'Applying Game Optimization module...'
 
     Invoke-RegSetDword -Path 'HKLM\OFFLINE_SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile' -Name 'NetworkThrottlingIndex' -Value '0xffffffff'
 
@@ -449,40 +543,15 @@ function Invoke-GameOptimizationModule {
             Invoke-RegSetDword -Path $rawPath -Name 'TCPNoDelay' -Value '1'
         }
     }
-    else {
-        Write-M1Log -Level 'SKIP' -Message 'No offline TCP interface keys found for Nagle tweaks.'
-    }
 
     Invoke-RegSetDword -Path 'HKLM\OFFLINE_SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\cs2.exe\PerfOptions' -Name 'CpuPriorityClass' -Value '3'
     Invoke-RegSetDword -Path 'HKLM\OFFLINE_SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\cs2.exe\PerfOptions' -Name 'IoPriority' -Value '3'
 
     Invoke-RegSetString -Path 'HKU\OFFLINE_NTUSER\Software\Microsoft\DirectX\UserGpuPreferences' -Name 'cs2.exe' -Value 'GpuPreference=2;'
-
     Invoke-RegSetString -Path 'HKU\OFFLINE_NTUSER\Control Panel\Mouse' -Name 'MouseTrails' -Value '0'
     Invoke-RegSetString -Path 'HKU\OFFLINE_NTUSER\Control Panel\Mouse' -Name 'MouseSpeed' -Value '0'
     Invoke-RegSetString -Path 'HKU\OFFLINE_NTUSER\Control Panel\Mouse' -Name 'MouseThreshold1' -Value '0'
     Invoke-RegSetString -Path 'HKU\OFFLINE_NTUSER\Control Panel\Mouse' -Name 'MouseThreshold2' -Value '0'
-    Invoke-RegSetString -Path 'HKU\OFFLINE_NTUSER\Control Panel\Mouse' -Name 'CursorShadow' -Value '0'
-    Invoke-RegSetString -Path 'HKU\OFFLINE_NTUSER\Control Panel\Desktop' -Name 'CursorShadow' -Value '0'
-}
-
-function Invoke-Win11SpecificGuard {
-    param(
-        [Parameter(Mandatory = $true)]
-        [pscustomobject]$Profile
-    )
-
-    if ($Profile.IsWindows10Ltsc) {
-        Write-M1Log -Level 'SKIP' -Always -Message 'W10 LTSC detected: Win11-specific appx/telemetry removals are skipped.'
-        return
-    }
-
-    if (-not $Profile.IsWindows11) {
-        Write-M1Log -Level 'SKIP' -Message 'System is not Windows 11. Win11-specific removals are skipped.'
-        return
-    }
-
-    Write-M1Log -Level 'INFO' -Message 'Windows 11 detected. No Win11-specific removal package is selected in this beta build.'
 }
 
 function Clear-StartupTrigger {
@@ -497,11 +566,11 @@ function Clear-StartupTrigger {
     }
 
     & reg.exe delete 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce' /v 'Mach1ByTad' /f 2>$null | Out-Null
-    Write-M1Log -Level 'INFO' -Message 'WinRE startup trigger cleanup executed.'
 }
 
 function Reboot-BackToWindows {
     Write-M1Log -Level 'INFO' -Always -Message 'Rebooting back to live Windows...'
+    Close-RecoveryUi
     & wpeutil reboot
     exit 0
 }
@@ -515,41 +584,33 @@ function Abort-And-Reboot {
     Write-M1Log -Level 'ERROR' -Always -Message $Reason
     Cleanup-Hives
     Clear-StartupTrigger
-    Write-M1Log -Level 'WARN' -Always -Message 'Abort path triggered. Rebooting to prevent any boot-loop risk.'
+    Close-RecoveryUi
     & wpeutil reboot
     exit 1
 }
 
-Write-M1Banner
-
-$progressStep = 0
-$totalSteps = 10
 $settings = $null
 
 try {
-    Update-M1Progress -Current $progressStep -Total $totalSteps -Status 'Detecting offline Windows partition'
     $windowsDrive = Get-WindowsDrive
-    $progressStep++
-
-    Update-M1Progress -Current $progressStep -Total $totalSteps -Status 'Locating Mach1 workspace'
     $script:Mach1Root = Get-Mach1Root -WindowsDrive $windowsDrive
-    $progressStep++
-
     $script:LogPath = Join-Path -Path $script:Mach1Root -ChildPath 'Logs\mach1-winre.log'
-    Write-M1Log -Level 'INFO' -Always -Message "Windows partition: $windowsDrive"
-    Write-M1Log -Level 'INFO' -Always -Message "Mach1 root: $script:Mach1Root"
+
+    $logoPath = Join-Path -Path $script:Mach1Root -ChildPath 'Config\mach1-logo.png'
+    Try-InitializeRecoveryUi -LogoPath $logoPath
+
+    Set-RecoveryUiProgress -TotalPercent 4 -CurrentPercent 10 -Status 'Initializing recovery session' -CurrentStep 'Locating pending trigger and settings'
 
     $pendingFile = Join-Path -Path $script:Mach1Root -ChildPath 'Config\patch.pending'
     if (-not (Test-Path -LiteralPath $pendingFile)) {
-        Write-M1Log -Level 'WARN' -Always -Message 'No pending patch trigger found. Launching default Recovery UI.'
+        Write-M1Log -Level 'WARN' -Always -Message 'No pending patch trigger found. Launching recovery menu.'
         Start-Process -FilePath 'X:\Windows\System32\RecEnv.exe' -ErrorAction SilentlyContinue
         exit 0
     }
 
     $settingsPath = Join-Path -Path $script:Mach1Root -ChildPath 'Config\settings.xml'
-    Update-M1Progress -Current $progressStep -Total $totalSteps -Status 'Reading Stage 1 settings'
     $settings = Read-Mach1Settings -SettingsPath $settingsPath
-    $progressStep++
+    $script:VerboseMode = [bool]$settings.VerboseMode
 
     $pendingRaw = Get-Content -Path $pendingFile -Raw -ErrorAction SilentlyContinue
     $pendingParts = @($pendingRaw -split '\|')
@@ -572,80 +633,65 @@ try {
         throw "Release handshake mismatch. pending=$pendingRelease settings=$($settings.ReleaseTag)"
     }
 
-    Initialize-VerboseToggle -FromConfig $settings.VerboseMode
-    Write-M1Log -Level 'INFO' -Always -Message "Release in scope: $($settings.ReleaseTag)"
-
-    $continueExecution = Show-M1RecoveryPanel -Settings $settings -WindowsDrive $windowsDrive -Mach1Root $script:Mach1Root
-    if (-not $continueExecution) {
-        Write-M1Log -Level 'WARN' -Always -Message 'Recovery execution canceled by operator. Returning to default Recovery UI.'
-        Clear-StartupTrigger
-        Start-Process -FilePath 'X:\Windows\System32\RecEnv.exe' -ErrorAction SilentlyContinue
-        exit 0
-    }
+    Set-RecoveryUiProgress -TotalPercent 12 -CurrentPercent 35 -Status 'Handshake validated' -CurrentStep 'Loading offline hives'
 
     $offlineSystem = Join-Path -Path $windowsDrive -ChildPath 'Windows\System32\Config\SYSTEM'
     $offlineSoftware = Join-Path -Path $windowsDrive -ChildPath 'Windows\System32\Config\SOFTWARE'
-
     $ntUserCandidates = @(
         (Join-Path -Path $windowsDrive -ChildPath 'Users\Default\NTUSER.DAT'),
         (Join-Path -Path $windowsDrive -ChildPath 'Documents and Settings\Default User\NTUSER.DAT')
     )
+
     $offlineNtUser = @($ntUserCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1)
     if ($offlineNtUser.Count -eq 0) {
         throw 'NTUSER.DAT could not be located for offline user hive mounting.'
     }
 
-    Update-M1Progress -Current $progressStep -Total $totalSteps -Status 'Mounting offline hives'
     Mount-OfflineHive -Root 'HKLM' -Name 'OFFLINE_SYSTEM' -HiveFile $offlineSystem
     Mount-OfflineHive -Root 'HKLM' -Name 'OFFLINE_SOFTWARE' -HiveFile $offlineSoftware
     Mount-OfflineHive -Root 'HKU' -Name 'OFFLINE_NTUSER' -HiveFile $offlineNtUser[0]
-    $progressStep++
 
     $osProfile = Get-OfflineOsProfile
-    Write-M1Log -Level 'INFO' -Always -Message "Offline OS: $($osProfile.ProductName) | Edition: $($osProfile.Edition)"
+    $modulePlan = Resolve-ModulePlan -OptimizationProfile ([string]$settings.OptimizationProfile) -OfflineProfile $osProfile -Settings $settings
 
-    Invoke-Win11SpecificGuard -Profile $osProfile
-    $progressStep++
-    Update-M1Progress -Current $progressStep -Total $totalSteps -Status 'Applying selected modules'
+    Set-RecoveryUiMeta -Host ("$($osProfile.ProductName) | Edition $($osProfile.Edition)") -Profile ([string]$modulePlan.Profile)
+    Set-RecoveryUiProgress -TotalPercent 24 -CurrentPercent 100 -Status 'Offline system loaded' -CurrentStep 'Preparing module execution plan'
 
-    if ($settings.KernelTimerTweaks) {
-        Invoke-KernelTimerModule
-    }
-    else {
-        Write-M1Log -Level 'SKIP' -Message 'Kernel/Timer module not selected.'
-    }
+    $steps = New-Object System.Collections.ArrayList
+    if ($modulePlan.Kernel) { [void]$steps.Add([pscustomobject]@{ Name = 'Kernel and timer tuning'; Action = { Invoke-KernelTimerModule } }) }
+    if ($modulePlan.Service) { [void]$steps.Add([pscustomobject]@{ Name = 'Service hardening'; Action = { Invoke-ServiceHardeningModule } }) }
+    if ($modulePlan.Cs2) { [void]$steps.Add([pscustomobject]@{ Name = 'Game optimization'; Action = { Invoke-GameOptimizationModule } }) }
 
-    $progressStep++
-    Update-M1Progress -Current $progressStep -Total $totalSteps -Status 'Applying service hardening'
-
-    if ($settings.ServiceHardening) {
-        Invoke-ServiceHardeningModule
-    }
-    else {
-        Write-M1Log -Level 'SKIP' -Message 'Service Hardening module not selected.'
+    if ($steps.Count -eq 0) {
+        Write-M1Log -Level 'SKIP' -Always -Message 'No modules selected by profile logic.'
     }
 
-    $progressStep++
-    Update-M1Progress -Current $progressStep -Total $totalSteps -Status 'Applying game optimization (CS2)'
+    $basePercent = 24
+    $execSpan = 60
+    $perStep = if ($steps.Count -gt 0) { [Math]::Floor($execSpan / $steps.Count) } else { $execSpan }
 
-    if ($settings.Cs2PerformancePack) {
-        Invoke-GameOptimizationModule
+    for ($i = 0; $i -lt $steps.Count; $i++) {
+        $step = $steps[$i]
+        $startPercent = $basePercent + ($i * $perStep)
+        $endPercent = if ($i -eq $steps.Count - 1) { $basePercent + $execSpan } else { $startPercent + $perStep }
+
+        Set-RecoveryUiProgress -TotalPercent $startPercent -CurrentPercent 10 -Status "Running $($step.Name)" -CurrentStep $step.Name
+        Write-M1Log -Level 'INFO' -Always -Message "Executing module: $($step.Name)"
+
+        & $step.Action
+
+        Set-RecoveryUiProgress -TotalPercent $endPercent -CurrentPercent 100 -Status "$($step.Name) complete" -CurrentStep $step.Name
     }
-    else {
-        Write-M1Log -Level 'SKIP' -Message 'Game Optimization module (CS2) not selected.'
-    }
 
-    $progressStep++
-    Update-M1Progress -Current $progressStep -Total $totalSteps -Status 'Finalizing and cleaning up'
-
+    Set-RecoveryUiProgress -TotalPercent 90 -CurrentPercent 30 -Status 'Finalizing changes' -CurrentStep 'Cleanup and trigger removal'
     Cleanup-Hives
     Clear-StartupTrigger
 
-    $progressStep = $totalSteps
-    Update-M1Progress -Current $progressStep -Total $totalSteps -Status 'Completed'
-    Write-M1Log -Level 'SUCCESS' -Always -Message 'All selected offline operations completed successfully.'
+    Set-RecoveryUiProgress -TotalPercent 100 -CurrentPercent 100 -Status 'Completed' -CurrentStep 'Recovery execution complete'
+    Write-M1Log -Level 'SUCCESS' -Always -Message 'All offline operations completed successfully.'
     Write-BridgeResult -SessionId ([string]$settings.SessionId) -ReleaseTag ([string]$settings.ReleaseTag) -Success $true -Message 'Offline patch execution completed successfully.'
 
+    Start-Sleep -Seconds 2
     Reboot-BackToWindows
 }
 catch {

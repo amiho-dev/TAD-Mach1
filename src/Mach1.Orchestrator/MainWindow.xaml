@@ -6,32 +6,75 @@
         Height="760"
         MinWidth="980"
         MinHeight="680"
+        WindowStyle="None"
+        ResizeMode="CanResize"
         Background="{StaticResource BackgroundBrush}"
         Foreground="{StaticResource TextBrush}"
         WindowStartupLocation="CenterScreen"
         Loaded="Window_Loaded">
-  <Grid Margin="22">
+  <Border Margin="10"
+          CornerRadius="10"
+          BorderBrush="{StaticResource StrokeBrush}"
+          BorderThickness="1"
+          Background="{StaticResource BackgroundBrush}">
+  <Grid Margin="14">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
-      <RowDefinition Height="18" />
+      <RowDefinition Height="12" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="14" />
       <RowDefinition Height="*" />
       <RowDefinition Height="18" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <Border Grid.Row="0" CornerRadius="18" Padding="18" Background="{StaticResource WarningBrush}">
+    <Border Grid.Row="0" CornerRadius="8" Background="#FF1B2735" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+      <Grid Height="40">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+          <TextBlock Text="Mach1" FontSize="15" FontWeight="Bold" Foreground="#FFF3F7FB" />
+          <TextBlock Margin="8,0,0,0" Text="Recovery Deployment Console" Foreground="#FFBFD0E2" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
+          <Button x:Name="BtnMinimizeWindow"
+                  Width="36"
+                  Height="28"
+                  Padding="0"
+                  Margin="0,0,6,0"
+                  Background="#FF2C3D51"
+                  Foreground="#FFF0F6FF"
+                  BorderBrush="#FF2C3D51"
+                  Content="-"
+                  Click="BtnMinimizeWindow_Click" />
+          <Button x:Name="BtnCloseWindow"
+                  Width="36"
+                  Height="28"
+                  Padding="0"
+                  Background="#FF9E2D2D"
+                  Foreground="White"
+                  BorderBrush="#FF9E2D2D"
+                  Content="X"
+                  Click="BtnCloseWindow_Click" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="2" CornerRadius="8" Padding="16" Background="#FF244460">
       <Grid>
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <StackPanel>
-          <TextBlock Text="BETA TRACK" FontSize="12" FontWeight="Bold" Foreground="#FFF3EF" />
-          <TextBlock Text="Mach1 Recovery Orchestrator" FontSize="31" FontWeight="Bold" Foreground="White" />
+          <TextBlock Text="CONTROLLED OFFLINE DEPLOYMENT" FontSize="12" FontWeight="Bold" Foreground="#FFD6E7F7" />
+          <TextBlock Text="Mach1 Recovery Configuration" FontSize="31" FontWeight="Bold" Foreground="White" />
           <TextBlock Margin="0,6,0,0"
                      FontSize="14"
-                     Foreground="#FFE8E4"
-                     Text="Offline patch pipeline with mandatory backup gates. Adjusted for Windows 10/11 behavior before reboot-to-WinRE." />
+                     Foreground="#FFE8F1FB"
+                     Text="Configure an offline execution profile. The recovery environment applies the selected profile after reboot." />
         </StackPanel>
         <Border Grid.Column="1"
                 CornerRadius="10"
@@ -39,7 +82,7 @@
                 Margin="18,0,0,0"
                 Background="#26FFFFFF"
                 VerticalAlignment="Top">
-          <TextBlock Text="Use at your own risk"
+          <TextBlock Text="Administrative Console"
                      FontSize="12"
                      FontWeight="SemiBold"
                      Foreground="White" />
@@ -47,10 +90,10 @@
       </Grid>
     </Border>
 
-    <Grid Grid.Row="2">
+    <Grid Grid.Row="4">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="2.2*" />
-        <ColumnDefinition Width="1.5*" />
+        <ColumnDefinition Width="2.15*" />
+        <ColumnDefinition Width="1.45*" />
       </Grid.ColumnDefinitions>
 
       <Border Grid.Column="0" Margin="0,0,11,0" Style="{StaticResource CardBorderStyle}">
@@ -64,20 +107,20 @@
           </Grid.RowDefinitions>
 
           <StackPanel Grid.Row="0">
-            <TextBlock Text="Stage 1 / Selection Console" FontSize="27" FontWeight="Bold" />
+            <TextBlock Text="Profile Selection" FontSize="27" FontWeight="Bold" />
             <TextBlock Margin="0,5,0,0"
                        FontSize="14"
                        Foreground="{StaticResource MutedTextBrush}"
-                       Text="Choose optimization profiles, persist config, and review host detection before patch arming." />
+                       Text="Choose one deployment profile. Selection is adjusted for the detected Windows host during recovery execution." />
           </StackPanel>
 
           <Border Grid.Row="2" CornerRadius="13" Padding="16" Background="{StaticResource PanelAltBrush}">
             <StackPanel>
-              <TextBlock Text="Optimization Packs" FontSize="19" FontWeight="SemiBold" />
-              <CheckBox x:Name="ChkKernelTimer" Margin="0,12,0,2" FontSize="15" Content="Kernel and timer tuning (BCDEDIT + scheduler)" />
-              <CheckBox x:Name="ChkServiceHardening" FontSize="15" Content="Service hardening for LTSC-oriented deployments" />
-              <CheckBox x:Name="ChkCs2Pack" FontSize="15" Content="CS2 profile (network, GPU, input stack)" />
-              <CheckBox x:Name="ChkVerbose" Margin="0,10,0,0" FontSize="15" Content="Verbose WinRE output logging" />
+              <TextBlock Text="Deployment Profile" FontSize="19" FontWeight="SemiBold" />
+              <RadioButton x:Name="RdoRecommended" Margin="0,12,0,4" GroupName="Profile" FontSize="15" Content="Recommended (balanced, production-safe defaults)" />
+              <RadioButton x:Name="RdoUltra" Margin="0,0,0,4" GroupName="Profile" FontSize="15" Content="Ultra (maximum removal and aggressive tuning)" />
+              <RadioButton x:Name="RdoLight" Margin="0,0,0,4" GroupName="Profile" FontSize="15" Content="Light (non-critical components only)" />
+              <CheckBox x:Name="ChkVerbose" Margin="0,10,0,0" FontSize="14" Content="Verbose recovery logging" />
             </StackPanel>
           </Border>
 
@@ -97,9 +140,9 @@
 
       <Grid Grid.Column="1" Margin="11,0,0,0">
         <Grid.RowDefinitions>
-          <RowDefinition Height="2.3*" />
+          <RowDefinition Height="2.45*" />
           <RowDefinition Height="16" />
-          <RowDefinition Height="1.35*" />
+          <RowDefinition Height="1.2*" />
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}">
@@ -108,18 +151,22 @@
             <TextBlock Margin="0,7,0,13"
                        Foreground="{StaticResource MutedTextBrush}"
                        TextWrapping="Wrap"
-                       Text="Backup is mandatory while in BETA. Patch arming remains blocked until backup and consent are complete." />
+                       Text="Configuration is saved first, then reboot occurs and processing is completed inside Recovery Environment." />
 
             <CheckBox x:Name="ChkBackupToggle"
                       FontSize="14"
                       FontWeight="SemiBold"
-                      Content="I confirm BETA risk and mandatory backup requirements" />
+                      Content="I confirm BETA risk and recovery-environment execution" />
+
+            <CheckBox x:Name="ChkBackupBypass"
+                      FontSize="14"
+                      Content="I already backed up / This is a fresh install (bypass backup requirement)" />
 
             <Button x:Name="BtnCreateBackup"
                     Height="44"
                     Margin="0,14,0,9"
                     FontSize="15"
-                    Content="Create Backup (Mandatory)"
+                    Content="Create Backup"
                     Click="BtnCreateBackup_Click" />
 
             <Button x:Name="BtnSaveConfig"
@@ -134,7 +181,7 @@
                     Height="47"
                     Margin="0,4,0,0"
                     FontSize="16"
-                    Content="Arm Reboot To Patch"
+                    Content="Start Recovery Execution"
                     Click="BtnPatch_Click" />
 
             <TextBlock x:Name="TxtStatus"
@@ -170,7 +217,7 @@
       </Grid>
     </Grid>
 
-    <Border Grid.Row="4" CornerRadius="12" Padding="12" Background="{StaticResource PanelAltBrush}">
+    <Border Grid.Row="6" CornerRadius="12" Padding="12" Background="{StaticResource PanelAltBrush}">
       <Grid>
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" />
@@ -188,4 +235,5 @@
       </Grid>
     </Border>
   </Grid>
+  </Border>
 </Window>

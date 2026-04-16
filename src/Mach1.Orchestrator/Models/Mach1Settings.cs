@@ -4,6 +4,8 @@ public sealed class Mach1Settings
 {
     public string SessionId { get; set; } = Guid.NewGuid().ToString("N");
 
+    public string OptimizationProfile { get; set; } = "Recommended";
+
     public bool KernelTimerTweaks { get; set; }
 
     public bool ServiceHardening { get; set; }
@@ -15,6 +17,12 @@ public sealed class Mach1Settings
     public bool BackupToggleConfirmed { get; set; }
 
     public bool BackupCompleted { get; set; }
+
+    public bool BackupBypassConfirmed { get; set; }
+
+    public string HostProductName { get; set; } = string.Empty;
+
+    public int HostBuild { get; set; }
 
     public string ReleaseTag { get; set; } = "Mach1.04166.501.CU";
 

@@ -16,5 +16,6 @@
 
   <ItemGroup>
     <Content Include="..\..\scripts\WinReEngine.ps1" Link="Assets\WinReEngine.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\8ea7ee01-c6f3-486d-a48e-fef86e3fd233_removalai_preview.png" Link="Assets\Mach1Logo.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

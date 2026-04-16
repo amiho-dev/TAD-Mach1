@@ -31,6 +31,8 @@ public sealed class WinReOrchestratorService
 
             _installerService.ArmPendingPatchTrigger(settings);
 
+            await EnsureWinReEnabledAsync(cancellationToken).ConfigureAwait(false);
+
             var winReWimPath = await ResolveWinReWimPathAsync(cancellationToken).ConfigureAwait(false);
             await InjectWinReStartupAsync(winReWimPath, cancellationToken).ConfigureAwait(false);
 
@@ -166,8 +168,27 @@ public sealed class WinReOrchestratorService
     {
         return string.Join(Environment.NewLine,
             "[LaunchApps]",
-            "%SYSTEMDRIVE%\\Windows\\System32\\wpeinit.exe",
-            "%SYSTEMDRIVE%\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe,-NoProfile -ExecutionPolicy Bypass -File X:\\Windows\\System32\\Mach1\\WinReEngine.ps1");
+            "X:\\Windows\\System32\\wpeinit.exe",
+            "X:\\Windows\\System32\\cmd.exe,/c X:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -STA -NoLogo -NoProfile -ExecutionPolicy Bypass -WindowStyle Normal -File X:\\Windows\\System32\\Mach1\\WinReEngine.ps1");
+    }
+
+    private async Task EnsureWinReEnabledAsync(CancellationToken cancellationToken)
+    {
+        var info = await _commandRunner.RunAsync("reagentc.exe", "/info", cancellationToken).ConfigureAwait(false);
+        var text = string.Join(Environment.NewLine, info.StandardOutput, info.StandardError);
+        if (!text.Contains("Windows RE status", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (!text.Contains("Enabled", StringComparison.OrdinalIgnoreCase))
+        {
+            var enable = await _commandRunner.RunAsync("reagentc.exe", "/enable", cancellationToken).ConfigureAwait(false);
+            if (!enable.Success)
+            {
+                throw new InvalidOperationException($"reagentc /enable failed: {enable.StandardOutput} {enable.StandardError}");
+            }
+        }
     }
 
     private static void EnsureEngineScriptExists()

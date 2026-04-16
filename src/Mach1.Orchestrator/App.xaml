@@ -3,15 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
   <Application.Resources>
-    <Color x:Key="WindowColor">#F4F7FB</Color>
-    <Color x:Key="CardColor">#FFFFFF</Color>
-    <Color x:Key="CardAltColor">#EDF3FA</Color>
-    <Color x:Key="TopBandColor">#C0382B</Color>
-    <Color x:Key="AccentColor">#1276D6</Color>
-    <Color x:Key="AccentSoftColor">#D9EAFF</Color>
-    <Color x:Key="TextColor">#182634</Color>
-    <Color x:Key="MutedTextColor">#5D7187</Color>
-    <Color x:Key="StrokeColor">#D5E0EC</Color>
+    <Color x:Key="WindowColor">#E9EEF4</Color>
+    <Color x:Key="CardColor">#F9FBFD</Color>
+    <Color x:Key="CardAltColor">#EEF3F8</Color>
+    <Color x:Key="TopBandColor">#23415E</Color>
+    <Color x:Key="AccentColor">#1D5F9E</Color>
+    <Color x:Key="AccentSoftColor">#D8E5F2</Color>
+    <Color x:Key="TextColor">#1A2A3A</Color>
+    <Color x:Key="MutedTextColor">#556A80</Color>
+    <Color x:Key="StrokeColor">#C1CDD8</Color>
 
     <SolidColorBrush x:Key="BackgroundBrush" Color="{DynamicResource WindowColor}" />
     <SolidColorBrush x:Key="PanelBrush" Color="{DynamicResource CardColor}" />

@@ -37,4 +37,6 @@ public static class Mach1Paths
     public static string WinReLogPath => Path.Combine(LogDirectory, "mach1-winre.log");
 
     public static string InstalledEngineScriptPath => Path.Combine(WinReDirectory, "WinReEngine.ps1");
+
+    public static string InstalledLogoPath => Path.Combine(ConfigDirectory, "mach1-logo.png");
 }

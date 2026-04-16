@@ -86,15 +86,15 @@ public partial class App : Application
     {
         var light = IsLightTheme();
 
-        SetColor("WindowColor", light ? "#F4F7FB" : "#0F1620");
-        SetColor("CardColor", light ? "#FFFFFF" : "#172230");
-        SetColor("CardAltColor", light ? "#EDF3FA" : "#1C2A3B");
-        SetColor("TopBandColor", light ? "#C0382B" : "#A52834");
-        SetColor("AccentColor", light ? "#1276D6" : "#50A8FF");
-        SetColor("AccentSoftColor", light ? "#D9EAFF" : "#1C334A");
-        SetColor("TextColor", light ? "#182634" : "#E7F1FF");
-        SetColor("MutedTextColor", light ? "#5D7187" : "#9FB8D3");
-        SetColor("StrokeColor", light ? "#D5E0EC" : "#2E435C");
+        SetColor("WindowColor", light ? "#E9EEF4" : "#0F1620");
+        SetColor("CardColor", light ? "#F9FBFD" : "#172230");
+        SetColor("CardAltColor", light ? "#EEF3F8" : "#1C2A3B");
+        SetColor("TopBandColor", light ? "#23415E" : "#1D2D40");
+        SetColor("AccentColor", light ? "#1D5F9E" : "#50A8FF");
+        SetColor("AccentSoftColor", light ? "#D8E5F2" : "#1C334A");
+        SetColor("TextColor", light ? "#1A2A3A" : "#E7F1FF");
+        SetColor("MutedTextColor", light ? "#556A80" : "#9FB8D3");
+        SetColor("StrokeColor", light ? "#C1CDD8" : "#2E435C");
     }
 
     private void SetColor(string key, string hex)
