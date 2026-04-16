@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Mach1.Orchestrator</AssemblyName>
+    <RootNamespace>Mach1.Orchestrator</RootNamespace>
+    <Version>1.416.500</Version>
+    <AssemblyVersion>1.416.500.0</AssemblyVersion>
+    <FileVersion>1.416.500.0</FileVersion>
+    <InformationalVersion>Mach1.0416.500.BF</InformationalVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\scripts\WinReEngine.ps1" Link="Assets\WinReEngine.ps1" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

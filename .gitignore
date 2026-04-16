@@ -1,0 +1,28 @@
+# .NET
+bin/
+obj/
+[Bb]uild/
+[Ll]og/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local outputs
+*.exe
+*.pdb
+*.cache
+*.tmp
