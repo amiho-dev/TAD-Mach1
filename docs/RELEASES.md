@@ -8,6 +8,7 @@
 	- Added SYS and RE session handshake (SessionId + release validation)
 	- Added WinRE-to-SYS completion bridge file (`last-winre-result.json`)
 	- Added full UI installer app (`Mach1.Setup`) for main system and recovery engine components
+	- Bundled full payload inside installer publish output and enabled updater-driven `-update` mode
 	- Added installer packaging script: `scripts/Build-CUInstaller.ps1`
 	- Published complete single-file installer payload: `artifacts/installer/Mach1.Setup.exe`
 

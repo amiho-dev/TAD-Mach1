@@ -15,6 +15,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="..\..\scripts\WinReEngine.ps1" Link="Payload\WinReEngine.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Payload\payload.zip" LogicalName="Mach1.Setup.Payload.payload.zip" Condition="Exists('Payload\\payload.zip')" />
+    <Resource Include="..\..\8ea7ee01-c6f3-486d-a48e-fef86e3fd233_removalai_preview.png" Link="Assets\Mach1Icon.png" />
   </ItemGroup>
 </Project>

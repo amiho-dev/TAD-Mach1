@@ -46,7 +46,8 @@ public sealed class UpdaterService
 
             var asset = release.Assets
                 .Where(a => !string.IsNullOrWhiteSpace(a.DownloadUrl) && !string.IsNullOrWhiteSpace(a.Name))
-                .OrderByDescending(a => a.Name!.EndsWith(".msi", StringComparison.OrdinalIgnoreCase) || a.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(a => a.Name!.Contains("Mach1.Setup", StringComparison.OrdinalIgnoreCase))
+                .ThenByDescending(a => a.Name!.EndsWith(".msi", StringComparison.OrdinalIgnoreCase) || a.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                 .ThenBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
                 .FirstOrDefault();
             return UpdateCheckResult.UpdateAvailable(new UpdatePackage(
@@ -113,6 +114,11 @@ public sealed class UpdaterService
             UseShellExecute = true,
             Verb = "runas"
         };
+
+        if (extension == ".exe")
+        {
+            psi.Arguments = "-update";
+        }
 
         Process.Start(psi);
         return true;

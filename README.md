@@ -90,6 +90,7 @@ Example:
 1. Open elevated PowerShell in the repository root.
 2. Run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-CUInstaller.ps1`
 3. Installer output: `artifacts\installer\Mach1.Setup.exe`
+4. When launched by the in-app updater, installer runs in update mode automatically using `-update`.
 
 Suffix examples:
 
